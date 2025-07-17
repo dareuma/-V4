@@ -1,4 +1,4 @@
-﻿namespace 因子周回アラーム
+namespace 因子周回アラーム
 {
     partial class NotificationForm
     {
