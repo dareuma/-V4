@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 using Tesseract;
@@ -34,10 +34,10 @@ namespace 因子周回アラーム
         private static readonly string[] FanCountKeywords = { "ファン数", "ファン", "ラァン" };
 
         private const int MaxMissCount = 10;
-        private const int SearchInterval = 500; // 0.5秒ごとに監視
+        private const int SearchInterval = 2000; // [変更] 2.0秒ごとに監視 (0.5秒から変更)
 
         // 画面変化検知と許容範囲に関する定数と変数
-        private const int NoChangeThresholdSeconds = 10; // 10秒間変化がなかったら通知 // ここを5から10に変更
+        private const int NoChangeThresholdSeconds = 10; // 10秒間変化がなかったら通知
         private const double ChangeTolerancePercentage = 0.20; // 20%までの変化は変化していないものと定義
         private DateTime _lastScreenChangeTime;
         private System.Windows.Forms.Timer _noChangeTimer;
@@ -52,6 +52,16 @@ namespace 因子周回アラーム
         private bool _isSyncing = false;
         private bool _isTopMostEnabled = false;
         private bool _isApplicationExiting = false;
+
+        // [新] アラーム音の鳴動モードを定義する列挙型
+        public enum AlarmMode
+        {
+            Continuous, // 連続通知モード (初期状態)
+            Single,     // 単通知モード
+            Silent      // 無音モード
+        }
+
+        private AlarmMode _currentAlarmMode = AlarmMode.Continuous; // [新] 現在のアラームモード
 
         public bool IsSyncing
         {
@@ -75,6 +85,9 @@ namespace 因子周回アラーム
             _noChangeTimer.Interval = 1000; // 1秒ごとにNoChangeTimer_Tickを実行
             _noChangeTimer.Tick += NoChangeTimer_Tick;
             Debug.WriteLine("NoChangeTimerが初期化されました。");
+
+            // [新] soundModeButtonの初期テキストを設定
+            UpdateSoundModeButtonText();
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -90,7 +103,8 @@ namespace 因子周回アラーム
                 Debug.WriteLine($"ウマ娘のウィンドウが見つかりません。指定されたウィンドウ名: {UmaMusumeWindowName}");
                 if (!Application.OpenForms.OfType<NotificationForm>().Any())
                 {
-                    var notification = new NotificationForm("ウマ娘のウィンドウが見つかりません。", this.Location, new Size(300, 163), _isTopMostEnabled);
+                    // [変更] NotificationFormに_currentAlarmModeを渡す
+                    var notification = new NotificationForm("ウマ娘のウィンドウが見つかりません。", this.Location, new Size(300, 163), _isTopMostEnabled, _currentAlarmMode);
                     notification.ShowDialog();
                 }
                 Show();
@@ -104,7 +118,8 @@ namespace 因子周回アラーム
                 Debug.WriteLine($"tessdataフォルダが見つかりません: {tessdataPath}");
                 if (!Application.OpenForms.OfType<NotificationForm>().Any())
                 {
-                    var notification = new NotificationForm("tessdataフォルダが見つかりません。\n学習済みデータを正しく配置してください。", this.Location, new Size(300, 163), _isTopMostEnabled);
+                    // [変更] NotificationFormに_currentAlarmModeを渡す
+                    var notification = new NotificationForm("tessdataフォルダが見つかりません。\n学習済みデータを正しく配置してください。", this.Location, new Size(300, 163), _isTopMostEnabled, _currentAlarmMode);
                     notification.ShowDialog();
                 }
                 Show();
@@ -131,6 +146,42 @@ namespace 因子周回アラーム
             foreach (Form form in Application.OpenForms)
             {
                 form.TopMost = _isTopMostEnabled;
+            }
+        }
+
+        // [新] soundModeButton_Clickイベントハンドラ
+        private void soundModeButton_Click(object sender, EventArgs e)
+        {
+            switch (_currentAlarmMode)
+            {
+                case AlarmMode.Continuous:
+                    _currentAlarmMode = AlarmMode.Single;
+                    break;
+                case AlarmMode.Single:
+                    _currentAlarmMode = AlarmMode.Silent;
+                    break;
+                case AlarmMode.Silent:
+                    _currentAlarmMode = AlarmMode.Continuous;
+                    break;
+            }
+            UpdateSoundModeButtonText();
+            Debug.WriteLine($"アラームモードを切り替えました: {_currentAlarmMode}");
+        }
+
+        // [新] soundModeButtonのテキストを更新するヘルパーメソッド
+        private void UpdateSoundModeButtonText()
+        {
+            switch (_currentAlarmMode)
+            {
+                case AlarmMode.Continuous:
+                    soundModeButton.Text = "連続通知モード";
+                    break;
+                case AlarmMode.Single:
+                    soundModeButton.Text = "単通知モード";
+                    break;
+                case AlarmMode.Silent:
+                    soundModeButton.Text = "無音モード";
+                    break;
             }
         }
 
@@ -194,7 +245,8 @@ namespace 因子周回アラーム
                         StopMonitoring();
                         if (!Application.OpenForms.OfType<NotificationForm>().Any())
                         {
-                            var notification = new NotificationForm("ウマ娘のウィンドウが見つかりません。\n監視を終了します。", this.Location, new Size(300, 163), _isTopMostEnabled);
+                            // [変更] NotificationFormに_currentAlarmModeを渡す
+                            var notification = new NotificationForm("ウマ娘のウィンドウが見つかりません。\n監視を終了します。", this.Location, new Size(300, 163), _isTopMostEnabled, _currentAlarmMode);
                             notification.ShowDialog();
                         }
                     }
@@ -223,14 +275,14 @@ namespace 因子周回アラーム
                     // ウマ娘ウィンドウの下半分を定義
                     int bottomHalfY = height / 2;
                     int bottomHalfHeight = height - bottomHalfY;
-                    if (bottomHalfHeight <= 0) bottomHalfHeight = 1; // 少なくとも1ピクセル確保
+                    if (bottomHalfHeight <= 0) bottomHalfHeight = 1;
 
                     Rectangle bottomHalfRect = new Rectangle(0, bottomHalfY, width, bottomHalfHeight);
                     Debug.WriteLine($"下半分領域: {bottomHalfRect}");
 
                     // 下半分の中心から正方形に50%の範囲を参照
                     int smallerDimOfBottomHalf = Math.Min(bottomHalfRect.Width, bottomHalfRect.Height);
-                    int monitoredSide = (int)(smallerDimOfBottomHalf * 0.50); // 下半分の小さい方の50%
+                    int monitoredSide = (int)(smallerDimOfBottomHalf * 0.50);
 
                     // 監視領域のサイズが0になるのを防ぐ
                     if (monitoredSide <= 0) monitoredSide = 1;
@@ -297,7 +349,7 @@ namespace 因子周回アラーム
                     string alarmMessage = "";
                     if (foundSkillPt || foundComplete || foundFanCount)
                     {
-                        alarmMessage = "周回が終了しました"; // ここを変更
+                        alarmMessage = "周回が終了しました";
                     }
 
                     if (!string.IsNullOrEmpty(alarmMessage))
@@ -310,7 +362,8 @@ namespace 因子周回アラーム
                         {
                             NotificationForm notification;
                             Point notificationLocation = (_monitoringForm != null) ? _monitoringForm.Location : this.Location;
-                            notification = new NotificationForm(alarmMessage, notificationLocation, new Size(300, 163), _isTopMostEnabled);
+                            // [変更] NotificationFormに_currentAlarmModeを渡す
+                            notification = new NotificationForm(alarmMessage, notificationLocation, new Size(300, 163), _isTopMostEnabled, _currentAlarmMode);
 
                             DialogResult result = notification.ShowDialog();
 
@@ -345,7 +398,8 @@ namespace 因子周回アラーム
                 StopMonitoring();
                 if (!Application.OpenForms.OfType<NotificationForm>().Any())
                 {
-                    var notification = new NotificationForm("監視中にエラーが発生しました。\n監視を終了します。", this.Location, new Size(300, 163), _isTopMostEnabled);
+                    // [変更] NotificationFormに_currentAlarmModeを渡す
+                    var notification = new NotificationForm("監視中にエラーが発生しました。\n監視を終了します。", this.Location, new Size(300, 163), _isTopMostEnabled, _currentAlarmMode);
                     notification.ShowDialog();
                 }
             }
@@ -468,8 +522,8 @@ namespace 因子周回アラーム
                 {
                     NotificationForm notification;
                     Point notificationLocation = (_monitoringForm != null) ? _monitoringForm.Location : this.Location;
-                    // ここを変更
-                    notification = new NotificationForm("周回が停止していませんか？", notificationLocation, new Size(300, 163), _isTopMostEnabled);
+                    // [変更] NotificationFormに_currentAlarmModeを渡す
+                    notification = new NotificationForm("周回が停止していませんか？", notificationLocation, new Size(300, 163), _isTopMostEnabled, _currentAlarmMode);
 
                     DialogResult result = notification.ShowDialog(); // ダイアログを表示し結果を取得
 
