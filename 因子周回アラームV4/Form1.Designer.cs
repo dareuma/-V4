@@ -102,7 +102,7 @@ namespace 因子周回アラーム
             this.topMostButton.BackColor = System.Drawing.Color.Aqua;
             this.topMostButton.Location = new System.Drawing.Point(14, 90);
             this.topMostButton.Name = "topMostButton";
-            this.topMostButton.Size = new System.Drawing.Size(95, 23); // 横幅を小さくしました
+            this.topMostButton.Size = new System.Drawing.Size(95, 23); // 横幅を小さく
             this.topMostButton.TabIndex = 4;
             this.topMostButton.Text = "最前面に固定";
             this.topMostButton.UseVisualStyleBackColor = false;
@@ -111,9 +111,9 @@ namespace 因子周回アラーム
             // soundModeButton
             //
             this.soundModeButton.BackColor = System.Drawing.Color.Aqua;
-            this.soundModeButton.Location = new System.Drawing.Point(116, 90); // 最前面固定ボタンの隣に配置を調整しました
+            this.soundModeButton.Location = new System.Drawing.Point(116, 90); // topMostButtonの隣に配置を調整
             this.soundModeButton.Name = "soundModeButton";
-            this.soundModeButton.Size = new System.Drawing.Size(90, 23); // 横幅を大きくしました
+            this.soundModeButton.Size = new System.Drawing.Size(90, 23); // 横幅を大きく
             this.soundModeButton.TabIndex = 5; // 新しいTabIndex
             this.soundModeButton.Text = "単通知モード"; // 初期テキスト
             this.soundModeButton.UseVisualStyleBackColor = false;
