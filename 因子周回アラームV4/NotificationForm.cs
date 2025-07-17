@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Media; // SystemSounds のために必要
 using System.IO;
+using static 因子周回アラーム.Form1; // [新] Form1.AlarmModeを参照できるように追加
 
 namespace 因子周回アラーム
 {
@@ -12,6 +13,7 @@ namespace 因子周回アラーム
         private System.Windows.Forms.Timer _alarmTimer;
         private bool _isWhite = false;
         private SoundPlayer _soundPlayer;
+        private AlarmMode _currentAlarmMode; // [新] アラームモードを保持するフィールド
 
         // 手動でコンポーネントを定義
         private Label messageLabel;
@@ -21,8 +23,8 @@ namespace 因子周回アラーム
         // 必要なデザイナー変数 (「components」エラーを解決)
         private System.ComponentModel.IContainer components = null;
 
-        // Form1から渡される情報を受け取るコンストラクタ
-        public NotificationForm(string message, Point location, Size formSize, bool isTopMostEnabled)
+        // Form1から渡される情報を受け取るコンストラクタを修正
+        public NotificationForm(string message, Point location, Size formSize, bool isTopMostEnabled, AlarmMode alarmMode) // [変更] alarmMode引数を追加
         {
             InitializeComponent(); // ここでデザイナーで定義されたコンポーネントを初期化 (もしあれば)
 
@@ -34,6 +36,8 @@ namespace 因子周回アラーム
             this.Size = formSize; // Form1から渡されたサイズに設定
             this.Text = "因子周回アラーム";
             this.ShowInTaskbar = true; // タスクバーに表示しない
+
+            _currentAlarmMode = alarmMode; // [新] アラームモードを保存
 
             // メッセージラベルの再設定
             messageLabel = new Label();
@@ -87,10 +91,17 @@ namespace 因子周回アラーム
                 _soundPlayer = new SoundPlayer(soundFilePath);
             }
 
-            // タイマーを開始し、直後に最初のアラーム音を鳴らす
-            _alarmTimer.Start();
-            PlayAlarmSound(); // 最初のアラーム音を即座に鳴らす
-            _alarmTimer.Tick += AlarmTimer_Tick; // 以降はタイマーイベントで鳴らす
+            // [変更] アラームモードに基づいてタイマーの動作とサウンド再生を制御
+            if (_currentAlarmMode != AlarmMode.Silent)
+            {
+                PlayAlarmSound(); // まずは一度鳴らす (無音モード以外)
+
+                if (_currentAlarmMode == AlarmMode.Continuous)
+                {
+                    _alarmTimer.Start(); // 連続通知モードの場合はタイマーを開始
+                    _alarmTimer.Tick += AlarmTimer_Tick;
+                }
+            }
         }
 
         private void BlinkTimer_Tick(object sender, EventArgs e)
@@ -113,6 +124,11 @@ namespace 因子周回アラーム
 
         private void PlayAlarmSound()
         {
+            if (_currentAlarmMode == AlarmMode.Silent) // [新] 無音モードの場合は再生しない
+            {
+                return;
+            }
+
             try
             {
                 if (_soundPlayer != null)
@@ -188,9 +204,9 @@ namespace 因子周回アラーム
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(NotificationForm));
             this.SuspendLayout();
-            // 
+            //
             // NotificationForm
-            // 
+            //
             this.ClientSize = new System.Drawing.Size(284, 161);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "NotificationForm";
